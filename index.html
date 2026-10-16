@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#152238">
+<title>Hudba do not</title>
+<style>
+:root{color-scheme:light;--ink:#172033;--muted:#64748b;--line:#dbe3ee;--paper:#fff;--bg:#f3f6fa;--accent:#2459a9;--soft:#eaf1fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:#152238;color:#fff;padding:24px 18px 22px}header h1{margin:0 0 5px;font-size:27px}header p{margin:0;color:#d7e1ef}
+main{max-width:850px;margin:0 auto;padding:16px;display:grid;gap:14px}.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:17px;box-shadow:0 3px 14px #15223808}
+h2{font-size:18px;margin:0 0 12px}.muted{color:var(--muted);font-size:14px}.notice{background:#fff8e7;border:1px solid #f0d99c;border-radius:12px;padding:12px;font-size:14px}
+label{display:block;font-weight:600;margin:12px 0 6px}input[type=file],select,button{font:inherit}input[type=file],select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:var(--ink)}
+button{border:0;border-radius:11px;padding:12px 15px;background:var(--accent);color:white;font-weight:650;cursor:pointer;min-height:46px}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#e8eef7;color:#20334f}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}.actions button{width:100%}
+.progress{height:8px;background:#e8edf4;border-radius:99px;overflow:hidden;margin-top:12px}.progress span{display:block;width:0;height:100%;background:#3474c7;transition:width .2s}
+#status{margin-top:10px;white-space:pre-wrap;font-size:14px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.stat{background:#f5f8fc;border-radius:10px;padding:10px}.stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--muted)}
+#score{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;min-height:115px}#score svg{display:block;max-width:none}
+footer{max-width:850px;margin:0 auto;padding:0 16px 28px;color:var(--muted);font-size:12px}
+@media(min-width:650px){main{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
+@media print{body{background:white}header,main>.card:not(.score-card),footer,.no-print{display:none!important}main{display:block;padding:0;max-width:none}.score-card{border:0;box-shadow:none;padding:0}#score{border:0;overflow:visible;padding:0}#score svg{width:100%!important;height:auto!important}.print-title{display:block!important}}
+.print-title{display:none}
+</style>
+</head>
+<body>
+<header><h1>Hudba do not</h1><p>Lokální prototyp pro Safari · iPhone 13 / iPad A16</p></header>
+<main>
+<section class="card">
+<h2>1. Vstupní audio</h2>
+<p class="muted">Vyberte zvukový soubor uložený v zařízení. Audio se zpracovává přímo v prohlížeči a neodesílá se na server.</p>
+<label for="audioFile">Soubor MP3, WAV, M4A nebo AAC</label>
+<input id="audioFile" type="file" accept="audio/*">
+<div id="fileInfo" class="muted" style="margin-top:8px">Zatím není vybrán soubor.</div>
+<div class="notice" style="margin-top:12px">V této verzi se analyzuje hlavně <b>jednohlasá melodie</b>. Akordy, souzvuky, více nástrojů a rytmické nuance nemusí být rozpoznány správně. YouTube odkaz se zatím nepoužívá; nejprve je nutné mít audio soubor v zařízení.</div>
+</section>
+<section class="card">
+<h2>2. Nastavení přepisu</h2>
+<label for="instrument">Nástroj</label>
+<select id="instrument"><option value="wind">Dechový nástroj</option></select>
+<label for="transposition">Zápis tóniny / transpozice</label>
+<select id="transposition"><option value="0">Koncertní ladění (C)</option><option value="2">Nástroj v B♭ – zapsat o celý tón výše</option><option value="9">Nástroj v Es – zapsat o velkou sextu výše</option></select>
+<p class="muted">Transpozice se použije při exportu. Pro první kontrolu doporučujeme koncertní ladění a ověřit výsledek podle nahrávky.</p>
+<label for="threshold">Citlivost detekce</label>
+<select id="threshold"><option value="0.72">Vyšší – méně falešných tónů</option><option value="0.58" selected>Vyvážená</option><option value="0.42">Nižší – zachytí více tónů, ale může přidat chyby</option></select>
+<button id="analyzeBtn" disabled style="width:100%;margin-top:16px">Analyzovat audio v zařízení</button>
+<div class="progress"><span id="progress"></span></div><div id="status" role="status">Nejprve vyberte zvukový soubor.</div>
+</section>
+<section class="card wide score-card">
+<h2>3. Výsledek</h2>
+<p class="muted">Zjednodušený náhled notové osnovy. Před použitím v aranžmá zkontrolujte tóny i rytmus.</p>
+<div class="print-title"><h1>Hudba do not – pracovní přepis</h1><p id="printMeta"></p></div>
+<div class="stats">
+<div class="stat"><b id="noteCount">0</b><span>detekovaných tónů</span></div>
+<div class="stat"><b id="duration">—</b><span>délka audio</span></div>
+<div class="stat"><b id="range">—</b><span>rozsah tónů</span></div>
+</div>
+<div id="score"><p class="muted">Po analýze se zde zobrazí přibližný notový zápis.</p></div>
+<div class="actions no-print">
+<button id="musicxmlBtn" disabled>Export MusicXML</button>
+<button id="midiBtn" disabled>Export MIDI</button>
+<button id="pdfBtn" class="secondary" disabled>PDF / Tisk</button>
+</div>
+<p class="muted">MusicXML je určený k otevření/importu ve Finale. PDF se vytvoří přes dialog Tisk v Safari (Sdílet → Tisk → náhled roztáhnout → Sdílet/Uložit do Souborů, podle verze iOS).</p>
+</section>
+</main>
+<footer>Prototyp 0.1 · Veškerá analýza probíhá lokálně v aktuální kartě Safari. Zavřením nebo obnovením stránky se pracovní výsledek smaže. Nejde zatím o plnohodnotný vícehlasý přepis.</footer>
+<script>
+const $=id=>document.getElementById(id);
+let audioBuffer=null, events=[], audioName='', audioDuration=0;
+const A4=440;
+const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function midiName(n){return names[((n%12)+12)%12]+(Math.floor(n/12)-1)}
+function freqToMidi(f){return Math.round(69+12*Math.log2(f/A4))}
+function midiFreq(n){return 440*Math.pow(2,(n-69)/12)}
+function setStatus(s,p){$('status').textContent=s;if(p!==undefined)$('progress').style.width=p+'%'}
+$('audioFile').addEventListener('change',async e=>{
+ const file=e.target.files?.[0]; if(!file)return;
+ audioName=file.name; $('fileInfo').textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;
+ $('analyzeBtn').disabled=true; setStatus('Načítám audio do paměti zařízení…',5);
+ try{
+  const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)throw new Error('Tento prohlížeč nepodporuje Web Audio API.');
+  const ctx=new Ctx();const ab=await file.arrayBuffer();audioBuffer=await ctx.decodeAudioData(ab);await ctx.close();
+  audioDuration=audioBuffer.duration;$('analyzeBtn').disabled=false;
+  setStatus(`Audio připraveno (${audioDuration.toFixed(1)} s). Stiskněte Analyzovat.`,0);
+ }catch(err){audioBuffer=null;setStatus('Soubor se nepodařilo načíst. Zkuste MP3 nebo WAV. Detail: '+err.message,0);}
+});
+function downsampleMono(buffer,targetRate=22050){
+ const ch=buffer.numberOfChannels, sr=buffer.sampleRate, len=buffer.length;
+ const mono=new Float32Array(len);
+ for(let c=0;c<ch;c++){const d=buffer.getChannelData(c);for(let i=0;i<len;i++)mono[i]+=d[i]/ch;}
+ if(sr===targetRate)return mono;
+ const ratio=sr/targetRate, out=new Float32Array(Math.floor(len/ratio));
+ for(let i=0;i<out.length;i++){const pos=i*ratio, left=Math.floor(pos), frac=pos-left;out[i]=(mono[left]||0)*(1-frac)+(mono[Math.min(left+1,len-1)]||0)*frac;}
+ return out;
+}
+function yinPitch(frame,sr){
+ const N=frame.length, minTau=Math.floor(sr/1000), maxTau=Math.min(Math.floor(sr/65),Math.floor(N/2)-1);
+ let rms=0;for(let i=0;i<N;i++)rms+=frame[i]*frame[i];rms=Math.sqrt(rms/N);if(rms<0.008)return null;
+ const diff=new Float32Array(maxTau+1);diff[0]=1;
+ for(let tau=1;tau<=maxTau;tau++){let sum=0;for(let i=0;i<N-maxTau;i++){const d=frame[i]-frame[i+tau];sum+=d*d;}diff[tau]=sum;}
+ let running=0;for(let tau=1;tau<=maxTau;tau++){running+=diff[tau];diff[tau]=running?diff[tau]*tau/running:1;}
+ let chosen=-1;
+ for(let tau=minTau;tau<maxTau;tau++){if(diff[tau]<0.18){while(tau+1<maxTau&&diff[tau+1]<diff[tau])tau++;chosen=tau;break;}}
+ if(chosen<0){let best=1;for(let tau=minTau;tau<=maxTau;tau++)if(diff[tau]<best){best=diff[tau];chosen=tau;}if(best>0.32)return null;}
+ const a=diff[Math.max(minTau,chosen-1)],b=diff[chosen],c=diff[Math.min(maxTau,chosen+1)];
+ const denom=(a-2*b+c);const shift=denom?0.5*(a-c)/denom:0;
+ const freq=sr/(chosen+Math.max(-1,Math.min(1,shift)));
+ return freq>60&&freq<1500?{freq,confidence:1-diff[chosen],rms}:null;
+}
+function smoothEvents(raw, hopSec){
+ if(!raw.length)return [];
+ // collapse octave glitches and short gaps, then quantize to note events
+ const arr=raw.map(x=>({...x}));
+ for(let i=1;i<arr.length-1;i++)if(arr[i-1].midi===arr[i+1].midi&&arr[i].midi!==arr[i-1].midi)arr[i].midi=arr[i-1].midi;
+ const out=[];let cur=null;
+ for(const x of arr){
+  if(x.midi===null){if(cur){cur.end=x.t;out.push(cur);cur=null;}continue;}
+  if(cur&&cur.midi===x.midi&&x.t-cur.end<=hopSec*1.6){cur.end=x.t+hopSec;cur.conf=(cur.conf+x.conf)/2;}
+  else{if(cur)out.push(cur);cur={midi:x.midi,start:x.t,end:x.t+hopSec,conf:x.conf};}
+ }
+ if(cur)out.push(cur);
+ return out.filter(x=>x.end-x.start>=0.09);
+}
+$('analyzeBtn').addEventListener('click',async()=>{
+ if(!audioBuffer)return;
+ $('analyzeBtn').disabled=true;events=[];
+ try{
+  const sr=22050, signal=downsampleMono(audioBuffer,sr), win=4096, hop=1024, hopSec=hop/sr, raw=[];
+  const threshold=parseFloat($('threshold').value);const total=Math.max(1,Math.floor((signal.length-win)/hop));
+  for(let k=0,pos=0;pos+win<signal.length;pos+=hop,k++){
+   const frame=new Float32Array(win);let mean=0;for(let i=0;i<win;i++)mean+=signal[pos+i];mean/=win;
+   for(let i=0;i<win;i++){const w=0.5-0.5*Math.cos(2*Math.PI*i/(win-1));frame[i]=(signal[pos+i]-mean)*w;}
+   const result=yinPitch(frame,sr);
+   let midi=null,conf=0;
+   if(result&&result.confidence>=threshold){midi=freqToMidi(result.freq);conf=result.confidence;}
+   raw.push({t:(pos+win/2)/sr,midi,conf});
+   if(k%60===0){setStatus(`Analyzuji… ${Math.min(99,Math.round(k/total*100))} %`,Math.min(99,Math.round(k/total*100)));await new Promise(r=>setTimeout(r,0));}
+  }
+  events=smoothEvents(raw,hopSec);
+  const trans=parseInt($('transposition').value,10);events=events.map(x=>({...x,midi:x.midi+trans}));
+  if(!events.length){setStatus('Nepodařilo se spolehlivě detekovat tóny. Zkuste čistší jednohlasou nahrávku nebo nižší citlivost.',0);return;}
+  renderScore();$('noteCount').textContent=events.length;$('duration').textContent=audioDuration.toFixed(1)+' s';
+  const ns=events.map(e=>e.midi);$('range').textContent=midiName(Math.min(...ns))+'–'+midiName(Math.max(...ns));
+  $('musicxmlBtn').disabled=$('midiBtn').disabled=$('pdfBtn').disabled=false;
+  setStatus(`Hotovo: ${events.length} tónů. Zkontrolujte přepis před exportem.`,100);
+ }catch(err){setStatus('Chyba při analýze: '+err.message,0);}
+ finally{$('analyzeBtn').disabled=false;}
+});
+function renderScore(){
+ const trans=parseInt($('transposition').value,10);const notes=events;
+ const cols=8, perPage=8, systems=Math.ceil(notes.length/perPage), width=780, sysH=94, height=systems*sysH+28;
+ let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Zjednodušený notový zápis">`;
+ for(let s=0;s<systems;s++){
+  const y=24+s*sysH; for(let l=0;l<5;l++)svg+=`<line x1="20" y1="${y+l*10}" x2="760" y2="${y+l*10}" stroke="#222" stroke-width="1"/>`;
+  svg+=`<text x="22" y="${y+35}" font-size="38" font-family="serif">𝄞</text>`;
+  for(let j=0;j<perPage;j++){const idx=s*perPage+j;if(idx>=notes.length)break;const n=notes[idx], x=95+j*82;
+   // treble staff: E4 bottom line (MIDI 64), one diatonic step per 5px
+   const semis=n.midi, pitchClass=((semis%12)+12)%12, octave=Math.floor(semis/12)-1;
+   const diaMap={0:0,1:0,2:1,3:1,4:2,5:3,6:3,7:4,8:4,9:5,10:5,11:6};
+   const diatonic=(octave-4)*7+diaMap[pitchClass];const yy=y+40-diatonic*5;
+   if(yy<y-6||yy>y+58){svg+=`<text x="${x-6}" y="${Math.max(y-7,Math.min(y+65,yy-10))}" font-size="10">…</text>`;}
+   if(pitchClass===1||pitchClass===3||pitchClass===6||pitchClass===8||pitchClass===10)svg+=`<text x="${x-13}" y="${yy+4}" font-size="15">♯</text>`;
+   svg+=`<ellipse cx="${x}" cy="${yy}" rx="7" ry="4.7" transform="rotate(-20 ${x} ${yy})" fill="#111"/>`;
+   if(n.end-n.start>0.12)svg+=`<line x1="${x+6}" y1="${yy}" x2="${x+6}" y2="${yy-29}" stroke="#111" stroke-width="1.6"/>`;
+   svg+=`<text x="${x-17}" y="${y+66}" font-size="10" fill="#555">${midiName(n.midi)}</text>`;
+  }
+ }
+ svg+='</svg>';$('score').innerHTML=svg;$('printMeta').textContent=`Soubor: ${audioName} · ${notes.length} tónů · exportní transpozice: ${trans}`;
+}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function pitchXml(m){const pc=((m%12)+12)%12, octave=Math.floor(m/12)-1;const map=[['C',''],['C','sharp'],['D',''],['D','sharp'],['E',''],['F',''],['F','sharp'],['G',''],['G','sharp'],['A',''],['A','sharp'],['B','']];return {step:map[pc][0],alter:map[pc][1],octave};}
+function exportMusicXML(){
+ const ppq=480, tempo=100, beatSec=60/tempo, trans=parseInt($('transposition').value,10);
+ const notes=events.map(e=>({m:e.midi,beats:Math.max(0.25,Math.round((e.end-e.start)/beatSec*2)/2)}));
+ let body='', beats=0;
+ for(const e of notes){const p=pitchXml(e.m);const dur=Math.max(1,Math.round(e.beats*1));body+=`<note><pitch><step>${p.step}</step>${p.alter?'<alter>1</alter>':''}<octave>${p.octave}</octave></pitch><duration>${dur}</duration><type>${e.beats>=3.5?'whole':e.beats>=1.5?'half':e.beats>=0.75?'quarter':'eighth'}</type>${p.alter?'<accidental>sharp</accidental>':''}</note>`;beats+=e.beats;}
+ const xml=`<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1"><work><work-title>Hudba do not - pracovní přepis</work-title></work><identification><encoding><software>Hudba do not prototype 0.1</software></encoding></identification><part-list><score-part id="P1"><part-name>Dechový nástroj</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>${body}</measure></part></score-partwise>`;
+ downloadBlob(new Blob([xml],{type:'application/vnd.recordare.musicxml+xml'}),'hudba_do_not.musicxml');
+}
+function writeVar(v){v=Math.max(0,v);let b=[v&127];while((v>>=7)){b.unshift((v&127)|128);}return b;}
+function midiFile(){
+ const ppq=480, tempo=600000, eventsMidi=[];
+ // tempo meta event at tick 0
+ const track=[0x00,0xff,0x51,0x03,(tempo>>16)&255,(tempo>>8)&255,tempo&255];
+ let prev=0;
+ for(const e of events){const start=Math.max(0,Math.round(e.start*ppq*100/60)),end=Math.max(start+60,Math.round(e.end*ppq*100/60));eventsMidi.push({t:start,on:true,n:e.midi},{t:end,on:false,n:e.midi});}
+ eventsMidi.sort((a,b)=>a.t-b.t||(a.on?1:-1));
+ let tick=0;for(const e of eventsMidi){const delta=e.t-tick;track.push(...writeVar(delta),e.on?0x90:0x80,e.n,e.on?90:0);tick=e.t;}
+ track.push(0x00,0xff,0x2f,0x00);
+ const len=track.length, arr=[...new TextEncoder().encode('MThd'),0,0,0,6,0,0,0,1,(ppq>>8)&255,ppq&255,...new TextEncoder().encode('MTrk'),(len>>>24)&255,(len>>>16)&255,(len>>>8)&255,len&255,...track];
+ downloadBlob(new Blob([new Uint8Array(arr)],{type:'audio/midi'}),'hudba_do_not.mid');
+}
+$('musicxmlBtn').addEventListener('click',exportMusicXML);
+$('midiBtn').addEventListener('click',midiFile);
+$('pdfBtn').addEventListener('click',()=>window.print());
+$('transposition').addEventListener('change',()=>{if(events.length){setStatus('Nastavení transpozice se změnilo. Pro konzistentní export prosím spusťte analýzu znovu.',0);$('musicxmlBtn').disabled=$('midiBtn').disabled=$('pdfBtn').disabled=true;}});
+</script>
+</body>
+</html>
